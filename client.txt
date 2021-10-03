@@ -1,0 +1,8 @@
+1) connexion au serveur
+2) envoie message/reception
+
+
+
+
+
+# sudo apt-get install libcairo2-dev libjpeg-dev libgif-dev

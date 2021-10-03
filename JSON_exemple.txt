@@ -1,0 +1,6 @@
+{
+    "susername": "test",
+    "destination": "#global",
+    "sip_addr": "x.x.x.x",
+    "message": "je suis un message"
+}
