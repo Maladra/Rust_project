@@ -1,5 +1,0 @@
-1) reçoit la connexion
-2) enregistre pseudo + IP (DB)
-3) maintient les connexions
-4) reception message
-5) envoie des messages a destination

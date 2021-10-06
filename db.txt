@@ -1,2 +1,0 @@
-1) clients (username/ip)
-2) messages (message, fk_Dusername)
