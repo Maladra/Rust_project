@@ -1,0 +1,107 @@
+client :
+    1) generate key pair (or use existing ??)
+    2) user input --> server ip:port
+        maybe add try to connect (but latter) (need to be more defined)
+        if connection refused :
+            display "Error to contact the server
+        else:
+            continue
+    2) user input --> pseudonyme
+    3) connect to server send : {    "sender" : "username",    "message_type": "connect",    "rcv": "<ip_server>",    "message_content": "<public_key>"}
+        if username already in use display message "Username already in use." and go back step 2
+    6) rcv public key from server
+    7) get n global message
+    message sending : 
+        1) user input --> message
+            message something like "Bonjour" --> message to send
+            or "/tell <pseudonyme> Bonjour"
+            by default send to #global 
+            if /tell send only to specified user 
+        2) message split in enum or struct then json
+        3) crypt the json with user private key
+        3) send message : crypt({    "sender" : "username",    "message_type": "global",    "rcv": "username",    "message_content": "bonjour"})
+
+    message receiving:
+        from user 
+        message like : encrypted({    "sender" : "username",    "message_type": "global",    "rcv": "username",    "message_content": "bonjour"})
+            1) decrypt, parse it in enum or struct
+            2) display message like : "From <username> in <#global> : Bonjour"
+        from server 
+        message like : encrypted({    "sender" : "<ip_server>",    "message_type": "to_ping",    "rcv": "username",    "message_content": "syn"})
+
+
+server :
+    1) generate key pair (or use existing ??)
+    2) waiting to get message
+    client connect :
+        1) receiving connect message
+        2) check if username is present or not
+            if present :
+                send back "pseudonyme already in use"
+                "sender" : {"<ip_server>",    "message_type": "username_duplicate",    "rcv": "<ip_client>",    "message_content": "choose another pseudo"}
+            else :
+                make user struct or enum and store it in vector
+                and send to user "sender" : {"<ip_server>",    "message_type": "connected",    "rcv": "<client pseudonyme>",    "message_content": "connected with <username> from now all message are encrypted"}
+        3) send n global message to freshly connected user
+    
+    client disconnect : (need to be more defined)
+        1) periodically send message to all users like "sender" : {"<ip_server>",    "message_type": "to_ping",    "rcv": "<client pseudonyme>",    "message_content": "connected with <username> from now all message are encrypted"}
+        get response back :
+            do nothing
+        don't get respone back :
+            1) remove user from user_connected_list
+            2) close connection (socket)
+
+    message receiving :
+        1) decrypt
+        if global : 
+            1) decrypt the message
+            2) store message in clear in database (it's bad but more easy)
+            3) crypt message back with private key from server
+            4) send message to all connected users like crypt({    "sender" : "username",    "message_type": "global",    "rcv": "",    "message_content": "bonjour"})
+
+        if private :
+            1) decrypt the message
+            2) crypt message back with private key from server
+            3) send message to user like crypt({    "sender" : "username",    "message_type": "private",    "rcv": "<username>",    "message_content": "bonjour"})
+
+
+
+struct user{
+    username: String,
+    ip: String,
+    public_key: String,
+}
+
+let user_vector: Vec<user> = Vec::new();
+
+
+struct message{
+    sender: String,
+    message_type: String,
+    rcv: String,
+    message_content: String,
+}
+
+
+JSON : 
+{
+    "sender" : "<username>",
+    "message_type": "<private> | <global> | <connect> | <connected> | <to_ping>",
+    "rcv": "<username> | null",
+    "message_content": "bonjour"
+}
+
+
+SQL table :
+ID  Integer PRIMARY KEY
+sender String NOT NULL
+message_type String NOT NULL
+datetime  Datetime Integer64 NOT NULL
+message_content String NULL
+
+
+
+1) SQLite
+2) RSA
+3) JSON

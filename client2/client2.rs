@@ -3,12 +3,12 @@ use serde_json::{Result, Value};
 use serde::{Deserialize, Serialize};
 use std::io::{Write, Read, stdin, stdout};
 
-
 // TODO: Thread
 // TODO: Implement JSON
 // TODO: SQL database support
 // TODO: Implement command like /tell
 // TODO: GUI
+
 
 #[derive(Deserialize ,Serialize)]
 struct Message {
