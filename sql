@@ -1,16 +1,18 @@
-CREATE DATABASE rust_project
-CREATE TABLE user
-(
-    id INT PRIMARY KEY,
-    username VARCHAR(100),
-    sender VARCHAR(100),
-)
-SELECT rust_project
-FROM `user`
-WHERE username,sender IS NOT NULL
+use rusqlite::{Connection, Result};
 
-CREATE TABLE rcv
-(
-    id CHAR PRIMARY KEY,
-    <ip_server> VARCHAR(100),
-)
+fn main() -> Result<()> {
+    let conn = Connection::open_in_memory()?;
+
+    conn.execute(
+        "CREATE TABLE message (
+                  id              INTEGER PRIMARY KEY,
+                  sender          TEXT NOT NULL,
+                  message_type    TEXT NOT NULL,
+                  message_content TEXT,
+                  message_time    DATETIME
+                  )",
+        [],
+    )?;
+
+    Ok(())
+}
