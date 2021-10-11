@@ -1,37 +1,42 @@
-use tokio::net::TcpSocket;
-use tokio::io::BufReader;
+use tokio::net::TcpStream;
 use tokio::io::AsyncReadExt;
-use tokio::io::split;
-use std::io;
+use tokio::io::AsyncWriteExt;
+use tokio::io;
+use tokio::net::tcp::OwnedWriteHalf;
 
 
-// for the moment nothing very interesting to comment
+async fn client_input (mut s_write: OwnedWriteHalf) -> OwnedWriteHalf {
+    loop{
+        use std::io::{stdin};
+        let mut s=String::new();
+        stdin().read_line(&mut s).expect("Did not enter a correct string");
+        println!("You typed: {}",s);
+        s_write.write_all(s.as_bytes()).await;
+    }
+}
+
+
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let addr = "127.0.0.1:1234".parse().unwrap();
-    let socket = TcpSocket::new_v4()?;
-    let mut stream = socket.connect(addr).await?;
+    let mut stream =  TcpStream::connect("127.0.0.1:1234").await?;
+    let (mut reader, writer) = stream.into_split();
 
+
+    tokio::spawn(async move {
+        client_input(writer).await;
+    });
+    
     loop {
-        stream.readable().await?;
-
-        let mut buf = Vec::with_capacity(4096);
-
-        // Try to read data, this may still fail with `WouldBlock`
-        // if the readiness event is a false positive.
-        match stream.try_read_buf(&mut buf){
-            Ok(0) => break,
-            Ok(n) => {
-                println!("read {} bytes", n);
-                println!("message : {}", String::from_utf8_lossy(&buf));
-            }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+        let mut buf = [0; 4096];
+        match reader.read(&mut buf).await{
+            Ok(0)=> {
                 continue;
             }
-            Err(e) => {
-                return Err(e.into());
+            Ok(_n)=> {
+                println!("{}", String::from_utf8_lossy(&buf));
+            }
+            Err(_e) => {
             }
         }
-    }
-    Ok(())
+    }   
 }

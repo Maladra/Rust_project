@@ -28,6 +28,7 @@ async fn main() -> io::Result<()> {
             stream: socket,
             addr: addr,
         };
+
         // check if username is present
         let mut username_is_present = false;
         for item in &mut user_vector.iter() {
