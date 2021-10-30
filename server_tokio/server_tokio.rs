@@ -1,6 +1,7 @@
 use tokio::net::TcpListener;
 use tokio::io::AsyncWriteExt;
 use std::io;
+use std::{thread, time};
 
 // represent a user
 struct User{
@@ -10,10 +11,6 @@ struct User{
     
 }
 
-// removable only for testing purpose
-async fn test<T>(socket: T) {
-
-}
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -22,12 +19,25 @@ async fn main() -> io::Result<()> {
 
     // move that on a function probably ??
     loop {
+        // user connection
         let (mut socket, addr) = listener.accept().await.unwrap();
+        socket.readable().await?;
+        let mut username_buf = [0; 4096];
+        match socket.try_read(&mut username_buf){
+            Ok(0) => {}
+            Ok(n) => {
+                println!("Username is : {} ",String::from_utf8_lossy(&username_buf))
+            }
+            Err(e) => {}
+        
+        }
+
         let mut user1 = User{
             username: String::from("toto"),
             stream: socket,
             addr: addr,
         };
+
         // check if username is present
         let mut username_is_present = false;
         for item in &mut user_vector.iter() {
@@ -48,9 +58,14 @@ async fn main() -> io::Result<()> {
         // send to all socket(stream) in user_vector 
         // move that in a function and if username or #global send to everyone or just to username
         // and spawn that in another async/thread for no blocking accept connection loop
-        for x in &mut user_vector {
-            x.stream.write(b"toto").await;
-            println!("{:?}", x.stream)
+        loop {
+            for x in &mut user_vector {
+                x.stream.write(b"toto").await;
+                let ten_millis = time::Duration::from_secs(5);
+                let now = time::Instant::now();
+                thread::sleep(ten_millis);
+                println!("{:?}", x.stream)
+            }
         }
     }
 }

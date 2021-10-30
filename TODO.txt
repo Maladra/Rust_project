@@ -1,0 +1,18 @@
+SERVER : 
+    BUG : to mutch \n\r end of username
+    FEATURE : check if username is used
+    FEATURE : CHIFFREMENT
+    FEATURE : JSONIFY message
+    FEATURE : message type
+    FEATURE : message /global send to database
+    FEATURE : message (global/private)
+    FEATURE : save message in db
+    FEATURE : get n last message from db when user connect
+
+CLIENT :
+FEATURE : Unuglify Client
+FEATURE : CHIFFREMENT
+FEATURE : JSONIFY message
+FEATURE : message type
+FEATURE : message /global send to database
+FEATURE : message (global/private)
