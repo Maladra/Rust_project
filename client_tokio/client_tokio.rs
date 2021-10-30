@@ -33,18 +33,10 @@ async fn main() -> io::Result<()> {
     tokio::spawn(async move {
         client_input(writer).await;
     });
-    
     loop {
         let mut buf = [0; 4096];
-        match reader.read(&mut buf).await{
-            Ok(0)=> {
-                continue;
-            }
-            Ok(_n)=> {
-                println!("{}", String::from_utf8_lossy(&buf));
-            }
-            Err(_e) => {
-            }
-        }
+        let mut readed = reader.read(&mut buf).await;
+        println!("{}",String::from_utf8_lossy(&buf))
+        
     }   
 }

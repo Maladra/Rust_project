@@ -14,13 +14,26 @@ struct User{
     
 }
 
-
 async fn process (mut user : User, mut channel_snd : Sender<String>, mut channel_rcv : Receiver<String>) {
-    loop {
-        let result = channel_rcv.recv().await.unwrap();
-        print!("GOT = {}", result);
-        let new_user_message = format!("New User is her : {}", result);
-        user.stream.write(new_user_message.as_bytes()).await;
+    loop{
+        match channel_rcv.try_recv() {
+            Ok(n) => {
+                println!("{}", n);
+                user.stream.write(n.as_bytes()).await;
+            }
+            Err(_) => {
+            }
+        }
+        let mut data = vec![0; 4096];
+        
+        match user.stream.try_read(&mut data) {
+            Ok(0) => {}
+            Ok(n) => {
+                println!("read {} bytes", n);  
+                channel_snd.send(String::from_utf8_lossy(&data).to_string());
+            }
+            Err(e) => {}
+        }
     }
 }
 
@@ -30,7 +43,6 @@ async fn main() -> io::Result<()> {
     let (chann_snd, mut chann_rcv)  = broadcast::channel(16);
     let listener = TcpListener::bind("127.0.0.1:1234").await?;
     loop {
-        
         // User accept
         let (mut socket, addr) = listener.accept().await.unwrap();  
         socket.readable().await?;
@@ -55,14 +67,14 @@ async fn main() -> io::Result<()> {
             stream: socket,
             addr: addr,
         };
+
         let username_send = user1.username.to_string();
-        chann_snd.send(username_send);
-        
         // Thread creation
         let thread_send = chann_snd.clone();
         let thread_rcv = chann_snd.subscribe();
         tokio::spawn(async move {
             process(user1, thread_send, thread_rcv).await;
         });
+        chann_snd.send(username_send);
     }
 }

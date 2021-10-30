@@ -1,5 +1,5 @@
 SERVER : 
-    BUG : to mutch \n\r end of username
+    BUG : to mutch \n\r in end of username
     FEATURE : check if username is used
     FEATURE : CHIFFREMENT
     FEATURE : JSONIFY message
