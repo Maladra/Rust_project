@@ -5,12 +5,20 @@ use tokio::io;
 use tokio::net::tcp::OwnedWriteHalf;
 use std::io::stdin;
 
+
+struct _Message{
+    user_sender: String,
+    message_type: String,
+    message_content: String, 
+}
+
+
 async fn client_input (mut s_write: OwnedWriteHalf) -> OwnedWriteHalf {
     loop{
         let mut s=String::new();
         stdin().read_line(&mut s).expect("Did not enter a correct string");
-        println!("You typed: {}",s);
-        s_write.write_all(s.as_bytes()).await;
+        print!("You typed: {}",s);
+        s_write.write_all(s.as_bytes()).await.unwrap();
     }
 }
 
@@ -20,14 +28,18 @@ async fn main() -> io::Result<()> {
     // Username input
     let mut username = String::new();
     stdin().read_line(&mut username).expect("Did not enter a correct Username");
-    println!("You Username is: {}",username);
-    
+    print!("You Username is: {}",username);
+    while username.ends_with('\n') || username.ends_with('\r') {
+        username.pop();
+    };
+
+
     // TCP Stream creation
-    let mut stream =  TcpStream::connect("127.0.0.1:1234").await?;
-    let (mut reader, mut writer) = stream.into_split();
+    let mut _stream =  TcpStream::connect("127.0.0.1:1234").await?;
+    let (mut reader, mut writer) = _stream.into_split();
 
     // Send username to server
-    writer.write_all(username.as_bytes()).await;
+    writer.write_all(username.as_bytes()).await.unwrap();
 
     // Spawn thread
     tokio::spawn(async move {
@@ -35,7 +47,7 @@ async fn main() -> io::Result<()> {
     });
     loop {
         let mut buf = [0; 4096];
-        let mut readed = reader.read(&mut buf).await;
+        let _readed = reader.read(&mut buf).await;
         println!("{}",String::from_utf8_lossy(&buf))
         
     }   

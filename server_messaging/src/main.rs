@@ -4,22 +4,28 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::Sender;
 use std::io;
-use std::{thread, time};
+//use std::{thread, time};
 
 // represent a user
 struct User{
     username: String,
     stream: tokio::net::TcpStream,
-    addr: std::net::SocketAddr,
-    
+    _addr: std::net::SocketAddr, 
 }
 
-async fn process (mut user : User, mut channel_snd : Sender<String>, mut channel_rcv : Receiver<String>) {
+async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv : Receiver<String>) {
     loop{
         match channel_rcv.try_recv() {
-            Ok(n) => {
-                println!("{}", n);
-                user.stream.write(n.as_bytes()).await;
+            Ok(mut n) => {
+                while user.username.ends_with('\n') || user.username.ends_with('\r') || user.username.ends_with('\u{0}') {
+                    user.username.pop();
+                };
+                while n.ends_with('\n') || n.ends_with('\r') || n.ends_with('\u{0}') {
+                    n.pop();
+                };
+
+                let message_to_send = format!("{} typed : {}", user.username, n);
+                user.stream.write(message_to_send.as_bytes()).await.unwrap();
             }
             Err(_) => {
             }
@@ -30,9 +36,9 @@ async fn process (mut user : User, mut channel_snd : Sender<String>, mut channel
             Ok(0) => {}
             Ok(n) => {
                 println!("read {} bytes", n);  
-                channel_snd.send(String::from_utf8_lossy(&data).to_string());
+                channel_snd.send(String::from_utf8_lossy(&data).to_string()).unwrap();
             }
-            Err(e) => {}
+            Err(_e) => {}
         }
     }
 }
@@ -40,32 +46,29 @@ async fn process (mut user : User, mut channel_snd : Sender<String>, mut channel
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let (chann_snd, mut chann_rcv)  = broadcast::channel(16);
+    let (chann_snd, mut _chann_rcv)  = broadcast::channel(16);
     let listener = TcpListener::bind("127.0.0.1:1234").await?;
     loop {
         // User accept
-        let (mut socket, addr) = listener.accept().await.unwrap();  
+        let (socket, addr) = listener.accept().await.unwrap();  
         socket.readable().await?;
         let mut username_buf = [0; 4096];
         match socket.try_read(&mut username_buf){
             Ok(0) => {}
-            Ok(n) => {}
-            Err(e) => {}
+            Ok(_n) => {}
+            Err(_e) => {}
         
         }
 
-        let mut username_string =String::from_utf8_lossy(&username_buf).to_string();
-        if username_string.ends_with('\n') || username_string.ends_with('\r') {
+        let mut username_string = String::from_utf8_lossy(&username_buf).to_string();
+        while username_string.ends_with('\n') || username_string.ends_with('\r') || username_string.ends_with('\u{0}') {
             username_string.pop();
-            if username_string.ends_with('\r') {
-                username_string.pop();
-            }
-        }
+        };
         // User struct
-        let mut user1 = User{
+        let user1 = User{
             username: username_string,
             stream: socket,
-            addr: addr,
+            _addr: addr,
         };
 
         let username_send = user1.username.to_string();
@@ -75,6 +78,6 @@ async fn main() -> io::Result<()> {
         tokio::spawn(async move {
             process(user1, thread_send, thread_rcv).await;
         });
-        chann_snd.send(username_send);
+        chann_snd.send(username_send).unwrap();
     }
 }
