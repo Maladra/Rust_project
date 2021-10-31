@@ -4,6 +4,8 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::Sender;
 use std::io;
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
 //use std::{thread, time};
 
 // represent a user
@@ -12,6 +14,17 @@ struct User{
     stream: tokio::net::TcpStream,
     _addr: std::net::SocketAddr, 
 }
+
+
+#[derive(Serialize, Deserialize)]
+struct Message{
+    user_sender: String,
+    user_receiver: String,
+    message_type: String,
+    message_content: String, 
+}
+
+
 
 async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv : Receiver<String>) {
     loop{
