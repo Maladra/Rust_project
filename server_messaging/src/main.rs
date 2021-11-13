@@ -5,8 +5,6 @@ use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::Sender;
 use std::io;
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
-//use std::{thread, time};
 
 // represent a user
 struct User{
@@ -36,9 +34,14 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
                 while n.ends_with('\n') || n.ends_with('\r') || n.ends_with('\u{0}') {
                     n.pop();
                 };
+                let from_json_message: Message = serde_json::from_str(&n).unwrap();
 
-                let message_to_send = format!("{} typed : {}", user.username, n);
-                user.stream.write(message_to_send.as_bytes()).await.unwrap();
+                if user.username == from_json_message.user_receiver || from_json_message.message_type == "global"{
+                    user.stream.write(n.as_bytes()).await.unwrap();
+                }
+                else if from_json_message.message_type == "login" {
+                    user.stream.write(n.as_bytes()).await.unwrap();
+                }
             }
             Err(_) => {
             }
@@ -72,14 +75,17 @@ async fn main() -> io::Result<()> {
             Err(_e) => {}
         
         }
-
         let mut username_string = String::from_utf8_lossy(&username_buf).to_string();
+        while username_string.ends_with('\n') || username_string.ends_with('\r') || username_string.ends_with('\u{0}') {
+            username_string.pop();
+        };
+        let json_login: Message = serde_json::from_str(&username_string).unwrap();
         while username_string.ends_with('\n') || username_string.ends_with('\r') || username_string.ends_with('\u{0}') {
             username_string.pop();
         };
         // User struct
         let user1 = User{
-            username: username_string,
+            username: json_login.user_sender,
             stream: socket,
             _addr: addr,
         };
@@ -91,6 +97,6 @@ async fn main() -> io::Result<()> {
         tokio::spawn(async move {
             process(user1, thread_send, thread_rcv).await;
         });
-        chann_snd.send(username_send).unwrap();
+        chann_snd.send(username_string).unwrap();
     }
 }

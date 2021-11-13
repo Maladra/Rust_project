@@ -5,7 +5,6 @@ use tokio::io;
 use tokio::net::tcp::OwnedWriteHalf;
 use std::io::stdin;
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
 
 #[derive(Serialize, Deserialize)]
 struct Message{
@@ -15,12 +14,19 @@ struct Message{
     message_content: String, 
 }
 
+// not working for moment
+fn _trim_newline(s: &mut String){
+    while s.ends_with('\n') || s.ends_with('\r') {
+        s.to_string().pop();
+    };
+}
 
 async fn client_input (mut s_write: OwnedWriteHalf, username_string: String) -> OwnedWriteHalf {
     loop{
         let mut s=String::new();
         stdin().read_line(&mut s).expect("Did not enter a correct string");
        
+        //trim_newline(&mut s);
         // trim user input
         while s.ends_with('\n') || s.ends_with('\r') {
             s.pop();
@@ -64,19 +70,29 @@ async fn client_input (mut s_write: OwnedWriteHalf, username_string: String) -> 
 async fn main() -> io::Result<()> {
     // Username input
     let mut username = String::new();
-    stdin().read_line(&mut username).expect("Did not enter a correct Username");
-    print!("You Username is: {}",username);
+    stdin().read_line(&mut username).expect("Did not enter a correct Username");  
     while username.ends_with('\n') || username.ends_with('\r') {
         username.pop();
     };
+    println!("Your Username is: {}",username);
 
 
     // TCP Stream creation
     let mut _stream =  TcpStream::connect("127.0.0.1:1234").await?;
     let (mut reader, mut writer) = _stream.into_split();
 
-    // Send username to server (formating that with json and message_type -> login)
-    writer.write_all(username.as_bytes()).await.unwrap();
+    // Send username to server
+    let mut message_type = String::new();
+    message_type = "login".to_string();
+
+    let username_to_send = Message{
+        user_sender: username.to_string(),
+        user_receiver: username.to_string(),
+        message_type: message_type,
+        message_content: username.to_string(),
+    };
+    let json_message = serde_json::to_string(&username_to_send).unwrap();
+    writer.write_all(json_message.as_bytes()).await.unwrap();
 
     // Spawn thread
     tokio::spawn(async move {
@@ -85,6 +101,17 @@ async fn main() -> io::Result<()> {
     loop {
         let mut buf = [0; 4096];
         let _readed = reader.read(&mut buf).await;
-        println!("{}",String::from_utf8_lossy(&buf));
+        let mut rcv_msg = String::from_utf8_lossy(&buf).to_string();
+        while rcv_msg.ends_with('\n') || rcv_msg.ends_with('\r') || rcv_msg.ends_with('\u{0}') {
+            rcv_msg.pop();
+        };
+        let json_message: Message = serde_json::from_str(&rcv_msg).unwrap();
+        if json_message.message_type == "login" {
+            println!(">> New user logged in : {}",json_message.message_content );    
+            
+        }
+        else {
+        println!("In {} From {} :\n{}\n----------", json_message.message_type, json_message.user_sender, json_message.message_content );
+        }
     }   
 }
