@@ -1,3 +1,4 @@
+use rsa::pkcs1::FromRsaPublicKey;
 use tokio::net::TcpListener;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::broadcast;
@@ -5,6 +6,8 @@ use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::Sender;
 use std::io;
 use serde::{Deserialize, Serialize};
+use rsa::{RsaPublicKey, RsaPrivateKey, pkcs8::FromPublicKey, pkcs8::ToPublicKey};
+use rand::rngs::OsRng;
 
 // represent a user
 struct User{
@@ -64,6 +67,13 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
 async fn main() -> io::Result<()> {
     let (chann_snd, mut _chann_rcv)  = broadcast::channel(16);
     let listener = TcpListener::bind("127.0.0.1:1234").await?;
+    // Generate priv and pub key of server
+    let mut rng = OsRng;
+    let bits = 2048;
+    let priv_key = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
+    let pub_key = RsaPublicKey::from(&priv_key);
+    let pub_key_pem = RsaPublicKey::to_public_key_pem(&pub_key).unwrap();
+
     loop {
         // User accept
         let (socket, addr) = listener.accept().await.unwrap();  

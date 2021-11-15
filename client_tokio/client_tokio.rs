@@ -5,6 +5,8 @@ use tokio::io;
 use tokio::net::tcp::OwnedWriteHalf;
 use std::io::stdin;
 use serde::{Deserialize, Serialize};
+use rsa::{RsaPublicKey, RsaPrivateKey, pkcs8::FromPublicKey, pkcs8::ToPublicKey};
+use rand::rngs::OsRng;
 
 #[derive(Serialize, Deserialize)]
 struct Message{
@@ -21,7 +23,7 @@ fn _trim_newline(s: &mut String){
     };
 }
 
-async fn client_input (mut s_write: OwnedWriteHalf, username_string: String) -> OwnedWriteHalf {
+async fn client_input (mut s_write: OwnedWriteHalf, username_string: String, clt_priv_key: RsaPrivateKey) -> OwnedWriteHalf {
     loop{
         let mut s=String::new();
         stdin().read_line(&mut s).expect("Did not enter a correct string");
@@ -68,6 +70,14 @@ async fn client_input (mut s_write: OwnedWriteHalf, username_string: String) -> 
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
+    // Generate priv and pub key of client
+    println!("----------------------\nInitialize pub and private key\n----------------------");
+    let mut rng = OsRng;
+    let bits = 2048;
+    let priv_key = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
+    let pub_key = RsaPublicKey::from(&priv_key);
+    let pub_key_pem = RsaPublicKey::to_public_key_pem(&pub_key).unwrap();
+    println!("----------------------\nPub and Private key was initialize\n----------------------");
     // Username input
     let mut username = String::new();
     stdin().read_line(&mut username).expect("Did not enter a correct Username");  
@@ -96,7 +106,7 @@ async fn main() -> io::Result<()> {
 
     // Spawn thread
     tokio::spawn(async move {
-        client_input(writer, username).await;
+        client_input(writer, username,priv_key).await;
     });
     loop {
         let mut buf = [0; 4096];
