@@ -1,3 +1,4 @@
+use rsa::PublicKey;
 use tokio::net::TcpStream;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -23,7 +24,7 @@ fn _trim_newline(s: &mut String){
     };
 }
 
-async fn client_input (mut s_write: OwnedWriteHalf, username_string: String, clt_priv_key: RsaPrivateKey) -> OwnedWriteHalf {
+async fn client_input (mut s_write: OwnedWriteHalf, username_string: String, srv_pub_key: RsaPublicKey, mut rng: OsRng) -> OwnedWriteHalf {
     loop{
         let mut s=String::new();
         stdin().read_line(&mut s).expect("Did not enter a correct string");
@@ -62,7 +63,8 @@ async fn client_input (mut s_write: OwnedWriteHalf, username_string: String, clt
         
             // message sending
             let json_message = serde_json::to_string(&message_to_send).unwrap();
-            s_write.write_all(json_message.as_bytes()).await.unwrap();
+            let enc_data = srv_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), &json_message.as_bytes()).expect("failed to encrypt");
+            s_write.write_all(&enc_data).await.unwrap();
         }
     }
 }
@@ -116,6 +118,7 @@ async fn main() -> io::Result<()> {
     };
     let json_message: Message = serde_json::from_str(&rcv_msg).unwrap();
     println!("{:?}", json_message.message_content);
+    let srv_pub_key = RsaPublicKey::from_public_key_pem(&json_message.message_content).unwrap();
     println!("----------------------\nSend username to server\n----------------------");
     
     // send username to server
@@ -129,17 +132,20 @@ async fn main() -> io::Result<()> {
         message_content: username.to_string(),
     };
     let json_message = serde_json::to_string(&username_to_send).unwrap();
-    println!("{}", json_message);
-    writer.write_all(json_message.as_bytes()).await.unwrap();
+    let enc_data = srv_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), &json_message.as_bytes()).expect("failed to encrypt");
+    writer.write_all(&enc_data).await.unwrap();
 
     // Spawn thread
+    let rng_thread = rng.clone();
     tokio::spawn(async move {
-        client_input(writer, username,priv_key).await;
+        client_input(writer, username, srv_pub_key, rng_thread).await;
     });
     loop {
         let mut buf = [0; 4096];
-        let _readed = reader.read(&mut buf).await;
-        let mut rcv_msg = String::from_utf8_lossy(&buf).to_string();
+        let n = reader.read(&mut buf[..]).await?;
+        let dec_data = priv_key.decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &buf[..n]).expect("failed to decrypt");
+
+        let mut rcv_msg = String::from_utf8_lossy(&dec_data).to_string();
         while rcv_msg.ends_with('\n') || rcv_msg.ends_with('\r') || rcv_msg.ends_with('\u{0}') {
             rcv_msg.pop();
         };

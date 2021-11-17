@@ -1,3 +1,4 @@
+use rsa::PublicKey;
 use rsa::pkcs1::FromRsaPublicKey;
 use tokio::io::AsyncReadExt;
 use tokio::io::ReadBuf;
@@ -29,8 +30,8 @@ struct Message{
 }
 
 
-// , srv_priv_key: RsaPrivateKey, clt_pub_key: RsaPublicKey
-async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv : Receiver<String>) {
+// 
+async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv : Receiver<String>, srv_priv_key: RsaPrivateKey, clt_pub_key: RsaPublicKey, mut rng: OsRng) {
     loop{
         match channel_rcv.try_recv() {
             Ok(mut n) => {
@@ -43,10 +44,12 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
                 let from_json_message: Message = serde_json::from_str(&n).unwrap();
 
                 if user.username == from_json_message.user_receiver || from_json_message.message_type == "global"{
-                    user.stream.write(n.as_bytes()).await.unwrap();
+                    let enc_data = clt_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), n.as_bytes()).unwrap();
+                    user.stream.write(&enc_data).await.unwrap();
                 }
                 else if from_json_message.message_type == "login" {
-                    user.stream.write(n.as_bytes()).await.unwrap();
+                    let enc_data = clt_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), n.as_bytes()).unwrap();
+                    user.stream.write(&enc_data).await.unwrap();
                 }
             }
             Err(_) => {
@@ -57,8 +60,9 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
         match user.stream.try_read(&mut data) {
             Ok(0) => {}
             Ok(n) => {
+                let dec_data = srv_priv_key.decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &data[..n]).expect("failed to decrypt");
                 println!("read {} bytes", n);  
-                channel_snd.send(String::from_utf8_lossy(&data).to_string()).unwrap();
+                channel_snd.send(String::from_utf8_lossy(&dec_data).to_string()).unwrap();
             }
             Err(_e) => {}
         }
@@ -118,16 +122,12 @@ async fn main() -> io::Result<()> {
         }).await?;
 
         let mut username_buf = [0; 4096];
-
-        socket.readable().await?;
-        match socket.try_read(&mut username_buf){
-            Ok(0) => {}
-            Ok(_n) => {}
-            Err(_e) => {}
         
-        }
-
-        let mut username_string = String::from_utf8_lossy(&username_buf).to_string();
+        socket.readable().await?;
+        let n = socket.read(&mut username_buf[..]).await?;
+        let dec_data = priv_key.decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &username_buf[..n]).expect("failed to decrypt");
+        
+        let mut username_string = String::from_utf8_lossy(&dec_data).to_string();
         while username_string.ends_with('\n') || username_string.ends_with('\r') || username_string.ends_with('\u{0}') {
             username_string.pop();
         };
@@ -147,8 +147,10 @@ async fn main() -> io::Result<()> {
           // Thread creation
         let thread_send = chann_snd.clone();
         let thread_rcv = chann_snd.subscribe();
+        let priv_key_thread = priv_key.clone();
+        let rng_thread = rng.clone();
         tokio::spawn(async move {
-            process(user1, thread_send, thread_rcv).await;
+            process(user1, thread_send, thread_rcv, priv_key_thread, client_public_key, rng_thread).await;
         });
         chann_snd.send(username_string).unwrap();
     }
