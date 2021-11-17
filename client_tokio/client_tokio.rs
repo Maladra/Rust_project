@@ -5,7 +5,7 @@ use tokio::io;
 use tokio::net::tcp::OwnedWriteHalf;
 use std::io::stdin;
 use serde::{Deserialize, Serialize};
-use rsa::{RsaPublicKey, RsaPrivateKey, pkcs8::FromPublicKey, pkcs8::ToPublicKey};
+use rsa::{RsaPublicKey, RsaPrivateKey, pkcs8::FromPublicKey, pkcs8::ToPublicKey, PaddingScheme};
 use rand::rngs::OsRng;
 
 #[derive(Serialize, Deserialize)]
@@ -78,6 +78,8 @@ async fn main() -> io::Result<()> {
     let pub_key = RsaPublicKey::from(&priv_key);
     let pub_key_pem = RsaPublicKey::to_public_key_pem(&pub_key).unwrap();
     println!("----------------------\nPub and Private key was initialize\n----------------------");
+    println!("----------------------\nChoose a username :\n----------------------");    
+    
     // Username input
     let mut username = String::new();
     stdin().read_line(&mut username).expect("Did not enter a correct Username");  
@@ -85,13 +87,38 @@ async fn main() -> io::Result<()> {
         username.pop();
     };
     println!("Your Username is: {}",username);
-
-
+    println!("----------------------\nConnect to Server\n----------------------");
+    
     // TCP Stream creation
     let mut _stream =  TcpStream::connect("127.0.0.1:1234").await?;
     let (mut reader, mut writer) = _stream.into_split();
-
-    // Send username to server
+    println!("----------------------\nConnected to Server\n----------------------");
+    println!("----------------------\nSend Public Key to Server\n----------------------");
+    
+    // Send public key
+    let mut message_type = String::new();
+    message_type = "pkey".to_string();
+    let pbkey_to_send = Message{
+        user_sender: "".to_string(),
+        user_receiver: "".to_string(),
+        message_type: message_type,
+        message_content: pub_key_pem,
+    };
+    let json_message = serde_json::to_string(&pbkey_to_send).unwrap();
+    writer.write_all(json_message.as_bytes()).await.unwrap();
+    
+    // Get public key from server
+    let mut buf = [0; 4096];
+    let _readed = reader.read(&mut buf).await;
+    let mut rcv_msg = String::from_utf8_lossy(&buf).to_string();
+    while rcv_msg.ends_with('\n') || rcv_msg.ends_with('\r') || rcv_msg.ends_with('\u{0}') {
+        rcv_msg.pop();
+    };
+    let json_message: Message = serde_json::from_str(&rcv_msg).unwrap();
+    println!("{:?}", json_message.message_content);
+    println!("----------------------\nSend username to server\n----------------------");
+    
+    // send username to server
     let mut message_type = String::new();
     message_type = "login".to_string();
 
@@ -102,6 +129,7 @@ async fn main() -> io::Result<()> {
         message_content: username.to_string(),
     };
     let json_message = serde_json::to_string(&username_to_send).unwrap();
+    println!("{}", json_message);
     writer.write_all(json_message.as_bytes()).await.unwrap();
 
     // Spawn thread
