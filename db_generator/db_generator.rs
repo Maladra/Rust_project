@@ -9,7 +9,6 @@ fn main() -> Result<()> {
                   sender          TEXT NOT NULL,
                   message_type    TEXT NOT NULL,
                   message_content TEXT,
-                  message_time    DATETIME
                   )",
         [],
     )?;
