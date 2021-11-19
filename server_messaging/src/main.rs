@@ -28,10 +28,35 @@ struct Message{
     message_type: String,
     message_content: String, 
 }
+// message type : get_from_db
+// message_type : global
+async fn db_process (channel_snd: Sender<String>, mut channel_rcv : Receiver<String>){
+    loop{
+        match channel_rcv.try_recv(){
+            Ok(mut n) => {
+                let from_json_message: Message = serde_json::from_str(&n).unwrap();
+                if from_json_message.message_type == "global" {
+                // insert into db 
+                }
+                else if from_json_message.message_type == "get_from_db"{
+                    // get from db
+                }
+            }
+            Err(_) => {
 
+            }
 
-// 
+        }
+    }
+}
+
+// message type : global
+// message type : login
+// message type : private
+// message type : get_from_db
+
 async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv : Receiver<String>, srv_priv_key: RsaPrivateKey, clt_pub_key: RsaPublicKey, mut rng: OsRng) {
+    // data from database 
     loop{
         match channel_rcv.try_recv() {
             Ok(mut n) => {
@@ -61,7 +86,7 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
             Ok(0) => {}
             Ok(n) => {
                 let dec_data = srv_priv_key.decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &data[..n]).expect("failed to decrypt");
-                println!("read {} bytes", n);  
+                println!("read {} bytes", n);
                 channel_snd.send(String::from_utf8_lossy(&dec_data).to_string()).unwrap();
             }
             Err(_e) => {}
@@ -72,7 +97,7 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let (chann_snd, mut _chann_rcv)  = broadcast::channel(16);
+    let (chann_snd, mut _chann_rcv)  = broadcast::channel(64);
     let listener = TcpListener::bind("127.0.0.1:1234").await?;
     // Generate priv and pub key of server
     let mut rng = OsRng;
@@ -80,6 +105,7 @@ async fn main() -> io::Result<()> {
     let priv_key = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
     let pub_key = RsaPublicKey::from(&priv_key);
     let pub_key_pem = RsaPublicKey::to_public_key_pem(&pub_key).unwrap();
+    
 
     loop {
         // User accept
@@ -131,6 +157,7 @@ async fn main() -> io::Result<()> {
         while username_string.ends_with('\n') || username_string.ends_with('\r') || username_string.ends_with('\u{0}') {
             username_string.pop();
         };
+
         let mut json_login: Message = serde_json::from_str(&username_string).unwrap();
 
         while json_login.message_content.ends_with('\n') || json_login.message_content.ends_with('\r') || json_login.message_content.ends_with('\u{0}') {
