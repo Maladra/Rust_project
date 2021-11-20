@@ -1,5 +1,5 @@
 use rsa::PublicKey;
-use rsa::pkcs1::FromRsaPublicKey;
+//use rsa::pkcs1::FromRsaPublicKey;
 use tokio::io::AsyncReadExt;
 use tokio::io::ReadBuf;
 use tokio::macros::support::poll_fn;
@@ -30,10 +30,10 @@ struct Message{
 }
 // message type : get_from_db
 // message_type : global
-async fn db_process (channel_snd: Sender<String>, mut channel_rcv : Receiver<String>){
+async fn _db_process (_channel_snd: Sender<String>, mut channel_rcv : Receiver<String>){
     loop{
         match channel_rcv.try_recv(){
-            Ok(mut n) => {
+            Ok(n) => {
                 let from_json_message: Message = serde_json::from_str(&n).unwrap();
                 if from_json_message.message_type == "global" {
                 // insert into db 
@@ -123,13 +123,12 @@ async fn main() -> io::Result<()> {
         while client_pkey.ends_with('\n') || client_pkey.ends_with('\r') || client_pkey.ends_with('\u{0}') {
             client_pkey.pop();
         }
-        let mut json_pkey: Message = serde_json::from_str(&client_pkey).unwrap();
+        let json_pkey: Message = serde_json::from_str(&client_pkey).unwrap();
         println!("{}", json_pkey.message_content);
         let client_public_key = RsaPublicKey::from_public_key_pem(&json_pkey.message_content).unwrap();
         
         // Send Server public key
-        let mut message_type = String::new();
-        message_type = "pkey".to_string();
+        let message_type = "pkey".to_string();
         let pkey_server_send = Message{
             user_sender: "".to_string(),
             user_receiver: "".to_string(),

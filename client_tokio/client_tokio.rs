@@ -98,8 +98,7 @@ async fn main() -> io::Result<()> {
     println!("----------------------\nSend Public Key to Server\n----------------------");
     
     // Send public key
-    let mut message_type = String::new();
-    message_type = "pkey".to_string();
+    let message_type = "pkey".to_string();
     let pbkey_to_send = Message{
         user_sender: "".to_string(),
         user_receiver: "".to_string(),
@@ -122,8 +121,7 @@ async fn main() -> io::Result<()> {
     println!("----------------------\nSend username to server\n----------------------");
     
     // send username to server
-    let mut message_type = String::new();
-    message_type = "login".to_string();
+    let message_type = "login".to_string();
 
     let username_to_send = Message{
         user_sender: username.to_string(),
