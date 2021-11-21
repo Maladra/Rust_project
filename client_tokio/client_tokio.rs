@@ -139,7 +139,7 @@ async fn main() -> io::Result<()> {
         client_input(writer, username, srv_pub_key, rng_thread).await;
     });
     loop {
-        let mut buf = [0; 4096];
+        let mut buf = [0; 256];
         let n = reader.read(&mut buf[..]).await?;
         let dec_data = priv_key.decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &buf[..n]).expect("failed to decrypt");
 

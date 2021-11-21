@@ -1,5 +1,4 @@
 use rsa::PublicKey;
-//use rsa::pkcs1::FromRsaPublicKey;
 use tokio::io::AsyncReadExt;
 use tokio::io::ReadBuf;
 use tokio::macros::support::poll_fn;
@@ -12,6 +11,8 @@ use std::io;
 use serde::{Deserialize, Serialize};
 use rsa::{RsaPublicKey, RsaPrivateKey, pkcs8::FromPublicKey, pkcs8::ToPublicKey, PaddingScheme};
 use rand::rngs::OsRng;
+use rusqlite::{params, Connection, Result};
+
 
 // represent a user
 struct User{
@@ -21,7 +22,7 @@ struct User{
 }
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct Message{
     user_sender: String,
     user_receiver: String,
@@ -30,15 +31,73 @@ struct Message{
 }
 // message type : get_from_db
 // message_type : global
-async fn _db_process (_channel_snd: Sender<String>, mut channel_rcv : Receiver<String>){
+async fn db_process (channel_snd: Sender<String>, mut channel_rcv : Receiver<String>){
+    let conn = Connection::open("/home/julien/Documents/projet_rust/rust_project.db").unwrap();
     loop{
         match channel_rcv.try_recv(){
             Ok(n) => {
                 let from_json_message: Message = serde_json::from_str(&n).unwrap();
                 if from_json_message.message_type == "global" {
+                    conn.execute("INSERT INTO message (sender, message_type, message_content) VALUES (?1, ?2, ?3)",
+                     params![from_json_message.user_sender, from_json_message.message_type, from_json_message.message_content]).unwrap();
                 // insert into db 
                 }
                 else if from_json_message.message_type == "get_from_db"{
+                    let last_id: Result<i64> = conn.query_row("SELECT * FROM message ORDER BY id DESC LIMIT 1",[], |row| row.get(0));
+                    match last_id {
+                        Ok(n) =>{
+                            if n < 10 {
+                                let mut sql_prepared = conn.prepare("SELECT * FROM message",).unwrap();
+                                let messages_sql = sql_prepared.query_map([], |row| {
+                                    Ok(Message{
+                                        user_sender: row.get(1)?,
+                                        user_receiver: from_json_message.user_sender.clone(),
+                                        message_type: "set_from_db".to_string(),
+                                        message_content: row.get(3)?, 
+                                    })
+                                }).unwrap();
+                                for message_sql in messages_sql {
+                                    match message_sql {
+                                        Ok(n) =>{
+                                            let json_message = serde_json::to_string(&n).unwrap();
+                                            //println!("{:?}", json_message);
+                                            channel_snd.send(json_message).unwrap();
+
+                                        }
+                                        Err(_) =>{
+                                        }  
+                                    }
+                                }
+                            }
+                            else {
+                                let min = n - 10;
+                                let mut sql_prepared = conn.prepare("SELECT * FROM message WHERE id BETWEEN ? AND ? ",).unwrap();
+                                let messages_sql = sql_prepared.query_map([min, n], |row| {
+                                    Ok(Message{
+                                        user_sender: row.get(1)?,
+                                        user_receiver: from_json_message.user_sender.clone(),
+                                        message_type: "set_from_db".to_string(),
+                                        message_content: row.get(3)?, 
+                                    })
+                                }).unwrap();
+                                for message_sql in messages_sql {
+                                    match message_sql {
+                                        Ok(n) =>{
+                                            let json_message = serde_json::to_string(&n).unwrap();
+                                            //println!("{:?}", json_message);
+                                            channel_snd.send(json_message).unwrap();
+
+                                        }
+                                        Err(_) =>{
+                                        }  
+                                    }
+                                }
+                            }
+                        },
+                        Err(_) =>{}
+                    }
+                    
+                    //matchconn.execute("SELECT * FROM message", []).map
                     // get from db
                 }
             }
@@ -54,9 +113,17 @@ async fn _db_process (_channel_snd: Sender<String>, mut channel_rcv : Receiver<S
 // message type : login
 // message type : private
 // message type : get_from_db
-
+// message type : set_from_db
 async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv : Receiver<String>, srv_priv_key: RsaPrivateKey, clt_pub_key: RsaPublicKey, mut rng: OsRng) {
-    // data from database 
+    // data from database
+    let message_back_from_db = Message{
+        user_sender: user.username.clone(),
+        user_receiver: "".to_string(),
+        message_type: "get_from_db".to_string(),
+        message_content: "".to_string(),
+    };
+    let json_message = serde_json::to_string(&message_back_from_db).unwrap();
+    channel_snd.send(json_message).unwrap();
     loop{
         match channel_rcv.try_recv() {
             Ok(mut n) => {
@@ -67,7 +134,7 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
                     n.pop();
                 };
                 let from_json_message: Message = serde_json::from_str(&n).unwrap();
-
+                 
                 if user.username == from_json_message.user_receiver || from_json_message.message_type == "global"{
                     let enc_data = clt_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), n.as_bytes()).unwrap();
                     user.stream.write(&enc_data).await.unwrap();
@@ -76,6 +143,10 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
                     let enc_data = clt_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), n.as_bytes()).unwrap();
                     user.stream.write(&enc_data).await.unwrap();
                 }
+                //else if from_json_message.message_type == "set_from_db" && from_json_message.user_sender == user.username {
+                //    let enc_data = clt_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), n.as_bytes()).unwrap();
+                //    user.stream.write(&enc_data).await.unwrap();
+                //}
             }
             Err(_) => {
             }
@@ -107,6 +178,12 @@ async fn main() -> io::Result<()> {
     let pub_key_pem = RsaPublicKey::to_public_key_pem(&pub_key).unwrap();
     
 
+    let thread_db_send = chann_snd.clone();
+    let thread_db_rcv = chann_snd.subscribe();
+    tokio::spawn(async move {
+        db_process(thread_db_send, thread_db_rcv).await;
+    });
+    println!("Server Initialized");
     loop {
         // User accept
         let (mut socket, addr) = listener.accept().await.unwrap();  
