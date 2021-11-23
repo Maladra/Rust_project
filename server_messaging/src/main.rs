@@ -35,6 +35,14 @@ fn trim_newline(s:&mut String){
         s.pop();
     };
 }
+
+// add user check function 
+// message type : user_check
+// message type : user_accept
+// message type : user_not_accept
+// if present snd --> user_not_accept
+// if not present snd --> user_accept
+
 // message type : get_from_db
 // message_type : global
 async fn db_process (channel_snd: Sender<String>, mut channel_rcv : Receiver<String>){
