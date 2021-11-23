@@ -1,7 +1,7 @@
 use rusqlite::{Connection, Result};
 
 fn main() -> Result<()> {
-    let conn = Connection::open("rust_project.db")?;
+    let conn = Connection::open("/tmp/rust_project.db")?;
 
     conn.execute(
         "CREATE TABLE message (

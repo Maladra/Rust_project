@@ -32,7 +32,7 @@ struct Message{
 // message type : get_from_db
 // message_type : global
 async fn db_process (channel_snd: Sender<String>, mut channel_rcv : Receiver<String>){
-    let conn = Connection::open("/home/julien/Documents/projet_rust/rust_project.db").unwrap();
+    let conn = Connection::open("/tmp/rust_project.db").unwrap();
     loop{
         match channel_rcv.try_recv(){
             Ok(n) => {
