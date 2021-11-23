@@ -96,9 +96,6 @@ async fn db_process (channel_snd: Sender<String>, mut channel_rcv : Receiver<Str
                         },
                         Err(_) =>{}
                     }
-                    
-                    //matchconn.execute("SELECT * FROM message", []).map
-                    // get from db
                 }
             }
             Err(_) => {
@@ -153,6 +150,7 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
             Ok(0) => {}
             Ok(n) => {
                 let dec_data = srv_priv_key.decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &data[..n]).expect("failed to decrypt");
+                assert_ne!(&dec_data, &data[..n]);
                 println!("read {} bytes", n);
                 channel_snd.send(String::from_utf8_lossy(&dec_data).to_string()).unwrap();
             }
