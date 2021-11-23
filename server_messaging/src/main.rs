@@ -29,6 +29,13 @@ struct Message{
     message_type: String,
     message_content: String, 
 }
+
+fn trim_newline(s:&mut String){
+    while s.ends_with('\n') || s.ends_with('\r') || s.ends_with('\u{0}') {
+        println!("{:?}", s);
+        s.pop();
+    };
+}
 // message type : get_from_db
 // message_type : global
 async fn db_process (channel_snd: Sender<String>, mut channel_rcv : Receiver<String>){
@@ -124,12 +131,8 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
     loop{
         match channel_rcv.try_recv() {
             Ok(mut n) => {
-                while user.username.ends_with('\n') || user.username.ends_with('\r') || user.username.ends_with('\u{0}') {
-                    user.username.pop();
-                };
-                while n.ends_with('\n') || n.ends_with('\r') || n.ends_with('\u{0}') {
-                    n.pop();
-                };
+                trim_newline(&mut user.username);
+                trim_newline(&mut n);
                 let mut from_json_message: Message = serde_json::from_str(&n).unwrap();
                  
                 if user.username == from_json_message.user_receiver || from_json_message.message_type == "global"{
@@ -205,6 +208,7 @@ async fn main() -> io::Result<()> {
         while client_pkey.ends_with('\n') || client_pkey.ends_with('\r') || client_pkey.ends_with('\u{0}') {
             client_pkey.pop();
         }
+
         let json_pkey: Message = serde_json::from_str(&client_pkey).unwrap();
         println!("{}", json_pkey.message_content);
         let client_public_key = RsaPublicKey::from_public_key_pem(&json_pkey.message_content).unwrap();
@@ -235,15 +239,9 @@ async fn main() -> io::Result<()> {
         let dec_data = priv_key.decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &username_buf[..n]).expect("failed to decrypt");
         
         let mut username_string = String::from_utf8_lossy(&dec_data).to_string();
-        while username_string.ends_with('\n') || username_string.ends_with('\r') || username_string.ends_with('\u{0}') {
-            username_string.pop();
-        };
-
+        trim_newline(&mut username_string);
         let mut json_login: Message = serde_json::from_str(&username_string).unwrap();
-
-        while json_login.message_content.ends_with('\n') || json_login.message_content.ends_with('\r') || json_login.message_content.ends_with('\u{0}') {
-            json_login.message_content.pop();
-        };
+        trim_newline(&mut json_login.message_content);
 
         // User struct
         let user1 = User{

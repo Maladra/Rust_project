@@ -17,10 +17,10 @@ struct Message{
     message_content: String, 
 }
 
-// not working for moment
-fn _trim_newline(s: &mut String){
-    while s.ends_with('\n') || s.ends_with('\r') {
-        s.to_string().pop();
+fn trim_newline(s:&mut String){
+    while s.ends_with('\n') || s.ends_with('\r') || s.ends_with('\u{0}') {
+        println!("{:?}", s);
+        s.pop();
     };
 }
 
@@ -84,10 +84,11 @@ async fn main() -> io::Result<()> {
     
     // Username input
     let mut username = String::new();
-    stdin().read_line(&mut username).expect("Did not enter a correct Username");  
-    while username.ends_with('\n') || username.ends_with('\r') {
-        username.pop();
-    };
+    stdin().read_line(&mut username).expect("Did not enter a correct Username");
+    println!("{:?}", username);
+    trim_newline(&mut username);
+    
+    println!("{:?}", username);
     println!("Your Username is: {}",username);
     println!("----------------------\nConnect to Server\n----------------------");
     
@@ -115,6 +116,7 @@ async fn main() -> io::Result<()> {
     while rcv_msg.ends_with('\n') || rcv_msg.ends_with('\r') || rcv_msg.ends_with('\u{0}') {
         rcv_msg.pop();
     };
+
     let json_message: Message = serde_json::from_str(&rcv_msg).unwrap();
     println!("{:?}", json_message.message_content);
     let srv_pub_key = RsaPublicKey::from_public_key_pem(&json_message.message_content).unwrap();
@@ -144,9 +146,8 @@ async fn main() -> io::Result<()> {
         let dec_data = priv_key.decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &buf[..n]).expect("failed to decrypt");
 
         let mut rcv_msg = String::from_utf8_lossy(&dec_data).to_string();
-        while rcv_msg.ends_with('\n') || rcv_msg.ends_with('\r') || rcv_msg.ends_with('\u{0}') {
-            rcv_msg.pop();
-        };
+        trim_newline(&mut rcv_msg);
+
         let json_message: Message = serde_json::from_str(&rcv_msg).unwrap();
         if json_message.message_type == "login" {
             println!(">> New user logged in : {}",json_message.message_content );    
