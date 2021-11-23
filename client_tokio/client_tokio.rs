@@ -19,7 +19,6 @@ struct Message{
 
 fn trim_newline(s:&mut String){
     while s.ends_with('\n') || s.ends_with('\r') || s.ends_with('\u{0}') {
-        println!("{:?}", s);
         s.pop();
     };
 }
@@ -31,9 +30,7 @@ async fn client_input (mut s_write: OwnedWriteHalf, username_string: String, srv
        
         //trim_newline(&mut s);
         // trim user input
-        while s.ends_with('\n') || s.ends_with('\r') {
-            s.pop();
-        };
+        trim_newline(&mut s);
         // check if message is private or global
         let chunk: Vec<&str> = s.split(" ").collect();
         let mut type_message = String::new();
