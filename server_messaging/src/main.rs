@@ -32,7 +32,6 @@ struct Message{
 
 fn trim_newline(s:&mut String){
     while s.ends_with('\n') || s.ends_with('\r') || s.ends_with('\u{0}') {
-        println!("{:?}", s);
         s.pop();
     };
 }

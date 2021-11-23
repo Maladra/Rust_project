@@ -28,8 +28,6 @@ async fn client_input (mut s_write: OwnedWriteHalf, username_string: String, srv
         let mut s=String::new();
         stdin().read_line(&mut s).expect("Did not enter a correct string");
        
-        //trim_newline(&mut s);
-        // trim user input
         trim_newline(&mut s);
         // check if message is private or global
         let chunk: Vec<&str> = s.split(" ").collect();
@@ -85,7 +83,6 @@ async fn main() -> io::Result<()> {
     println!("{:?}", username);
     trim_newline(&mut username);
     
-    println!("{:?}", username);
     println!("Your Username is: {}",username);
     println!("----------------------\nConnect to Server\n----------------------");
     
@@ -93,8 +90,8 @@ async fn main() -> io::Result<()> {
     let mut _stream =  TcpStream::connect("127.0.0.1:1234").await?;
     let (mut reader, mut writer) = _stream.into_split();
     println!("----------------------\nConnected to Server\n----------------------");
-    println!("----------------------\nSend Public Key to Server\n----------------------");
     
+    println!("----------------------\nSend Public Key to Server\n----------------------");
     // Send public key
     let message_type = "pkey".to_string();
     let pbkey_to_send = Message{
@@ -117,8 +114,8 @@ async fn main() -> io::Result<()> {
     let json_message: Message = serde_json::from_str(&rcv_msg).unwrap();
     println!("{:?}", json_message.message_content);
     let srv_pub_key = RsaPublicKey::from_public_key_pem(&json_message.message_content).unwrap();
-    println!("----------------------\nSend username to server\n----------------------");
     
+    println!("----------------------\nSend username to server\n----------------------");
     // send username to server
     let message_type = "login".to_string();
 
@@ -132,6 +129,7 @@ async fn main() -> io::Result<()> {
     let enc_data = srv_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), &json_message.as_bytes()).expect("failed to encrypt");
     writer.write_all(&enc_data).await.unwrap();
     println!("----------------------\nConnection initialized\n----------------------");
+    
     // Spawn thread
     let rng_thread = rng.clone();
     tokio::spawn(async move {
@@ -141,7 +139,8 @@ async fn main() -> io::Result<()> {
         let mut buf = [0; 256];
         let n = reader.read(&mut buf[..]).await?;
         let dec_data = priv_key.decrypt(PaddingScheme::new_pkcs1v15_encrypt(), &buf[..n]).expect("failed to decrypt");
-
+        assert_ne!(&dec_data, &buf[..n]);
+        
         let mut rcv_msg = String::from_utf8_lossy(&dec_data).to_string();
         trim_newline(&mut rcv_msg);
 
