@@ -143,10 +143,6 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
                     let enc_data = clt_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), n.as_bytes()).unwrap();
                     user.stream.write(&enc_data).await.unwrap();
                 }
-                //else if from_json_message.message_type == "set_from_db" && from_json_message.user_sender == user.username {
-                //    let enc_data = clt_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), n.as_bytes()).unwrap();
-                //    user.stream.write(&enc_data).await.unwrap();
-                //}
             }
             Err(_) => {
             }

@@ -132,7 +132,7 @@ async fn main() -> io::Result<()> {
     let json_message = serde_json::to_string(&username_to_send).unwrap();
     let enc_data = srv_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), &json_message.as_bytes()).expect("failed to encrypt");
     writer.write_all(&enc_data).await.unwrap();
-
+    println!("----------------------\nConnection initialized\n----------------------");
     // Spawn thread
     let rng_thread = rng.clone();
     tokio::spawn(async move {
@@ -152,8 +152,15 @@ async fn main() -> io::Result<()> {
             println!(">> New user logged in : {}",json_message.message_content );    
             
         }
+        else if json_message.message_type == "set_from_db" {
+            println!("Previous message of {} :\n{}\n----------", json_message.user_sender, json_message.message_content);
+
+        }
+        else if json_message.message_type == "private" {
+            println!("Private message of {} :\n{}\n----------", json_message.user_sender, json_message.message_content);
+        }
         else {
-        println!("In {} From {} :\n{}\n----------", json_message.message_type, json_message.user_sender, json_message.message_content );
+        println!("In {} From {} :\n{}\n----------", json_message.message_type, json_message.user_sender, json_message.message_content);
         }
     }   
 }
