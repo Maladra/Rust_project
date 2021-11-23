@@ -130,10 +130,21 @@ async fn process (mut user : User, channel_snd : Sender<String>, mut channel_rcv
                 while n.ends_with('\n') || n.ends_with('\r') || n.ends_with('\u{0}') {
                     n.pop();
                 };
-                let from_json_message: Message = serde_json::from_str(&n).unwrap();
+                let mut from_json_message: Message = serde_json::from_str(&n).unwrap();
                  
                 if user.username == from_json_message.user_receiver || from_json_message.message_type == "global"{
-                    let enc_data = clt_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), n.as_bytes()).unwrap();
+                    if from_json_message.message_type == "private" {
+                        let split = from_json_message.message_content.splitn(3, " ");
+                        match split.last() {
+                            Some(value) => {
+                                from_json_message.message_content = value.to_string();
+                            }
+                            None => {
+                            }
+                        }
+                    }
+                    let message_to_send = serde_json::to_string(&from_json_message).unwrap();
+                    let enc_data = clt_pub_key.encrypt(&mut rng, PaddingScheme::new_pkcs1v15_encrypt(), message_to_send.as_bytes()).unwrap();
                     user.stream.write(&enc_data).await.unwrap();
                 }
                 else if from_json_message.message_type == "login" {

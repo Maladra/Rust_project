@@ -71,7 +71,6 @@ async fn client_input (mut s_write: OwnedWriteHalf, username_string: String, srv
 
 
 #[tokio::main]
-
 async fn main() -> io::Result<()> {
     // Generate priv and pub key of client
     println!("----------------------\nInitialize pub and private key\n----------------------");
