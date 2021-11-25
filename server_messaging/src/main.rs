@@ -11,7 +11,21 @@ use std::io;
 use serde::{Deserialize, Serialize};
 use rsa::{RsaPublicKey, RsaPrivateKey, pkcs8::FromPublicKey, pkcs8::ToPublicKey, PaddingScheme};
 use rand::rngs::OsRng;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, Result, OpenFlags};
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // SQLITE READ ONLY return error if try opening DB but is not exist, we can test DB exist with that
+    fn test_db_connection() {
+        let conn = Connection::open_with_flags("/tmp/rust_project.db", OpenFlags::SQLITE_OPEN_READ_ONLY);
+        assert!(conn.is_ok());
+    }
+}
+
 
 
 // represent a user
